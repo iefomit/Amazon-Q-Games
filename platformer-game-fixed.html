@@ -1,0 +1,963 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multi-Level Platformer</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: 'Arial', sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+
+        #gameContainer {
+            position: relative;
+            width: 800px;
+            height: 600px;
+            border: 3px solid #333;
+            background: linear-gradient(to bottom, #87CEEB, #98FB98);
+            overflow: hidden;
+            border-radius: 10px;
+        }
+
+        #startScreen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 300;
+            color: white;
+            text-align: center;
+        }
+
+        #startScreen.hidden {
+            display: none;
+        }
+
+        .game-title {
+            font-size: 48px;
+            font-weight: bold;
+            margin-bottom: 20px;
+            text-shadow: 3px 3px 6px rgba(0,0,0,0.5);
+            animation: titlePulse 2s ease-in-out infinite alternate;
+        }
+
+        @keyframes titlePulse {
+            0% { transform: scale(1); }
+            100% { transform: scale(1.05); }
+        }
+
+        .game-subtitle {
+            font-size: 18px;
+            margin-bottom: 40px;
+            opacity: 0.9;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+        }
+
+        .play-button {
+            background: linear-gradient(45deg, #ff4757, #ff3742);
+            color: white;
+            border: none;
+            padding: 20px 40px;
+            font-size: 24px;
+            font-weight: bold;
+            border-radius: 50px;
+            cursor: pointer;
+            box-shadow: 0 8px 20px rgba(255, 71, 87, 0.4);
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .play-button:hover {
+            background: linear-gradient(45deg, #ff3742, #ff2d2d);
+            transform: translateY(-3px);
+            box-shadow: 0 12px 25px rgba(255, 71, 87, 0.6);
+        }
+
+        .play-button:active {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 15px rgba(255, 71, 87, 0.4);
+        }
+
+        .game-features {
+            margin-top: 40px;
+            font-size: 14px;
+            opacity: 0.8;
+            line-height: 1.6;
+        }
+
+        .feature-item {
+            margin: 5px 0;
+        }
+
+        #player {
+            position: absolute;
+            width: 30px;
+            height: 30px;
+            background: #ff4757;
+            border-radius: 5px;
+            border: 2px solid #ff3742;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+            transition: transform 0.1s ease-out;
+            overflow: visible;
+        }
+
+        #player::before {
+            content: '';
+            position: absolute;
+            top: 8px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 16px;
+            height: 10px;
+            background: 
+                radial-gradient(circle at 25% 40%, #2f3542 3px, transparent 3px),
+                radial-gradient(circle at 75% 40%, #2f3542 3px, transparent 3px);
+        }
+
+        #player::after {
+            content: '';
+            position: absolute;
+            top: 18px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 8px;
+            height: 4px;
+            border-radius: 0 0 8px 8px;
+            border: 2px solid #2f3542;
+            border-top: none;
+        }
+
+        .player-bounce {
+            animation: bounce 0.3s ease-out;
+        }
+
+        .player-double-jump {
+            animation: doubleJumpSpin 0.4s ease-out;
+        }
+
+        @keyframes bounce {
+            0% { transform: scale(1) rotate(0deg); }
+            50% { transform: scale(1.2) rotate(5deg); }
+            100% { transform: scale(1) rotate(0deg); }
+        }
+
+        @keyframes doubleJumpSpin {
+            0% { transform: scale(1) rotate(0deg); }
+            50% { transform: scale(1.3) rotate(180deg); }
+            100% { transform: scale(1) rotate(360deg); }
+        }
+
+        .platform {
+            position: absolute;
+            background: #2f3542;
+            border: 2px solid #57606f;
+            border-radius: 3px;
+        }
+
+        .enemy {
+            position: absolute;
+            width: 35px;
+            height: 25px;
+            background: #ff6b6b;
+            border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+            border: 2px solid #ee5a52;
+            overflow: visible;
+        }
+
+        .enemy::before,
+        .enemy::after {
+            content: '';
+            position: absolute;
+            width: 15px;
+            height: 8px;
+            background: #ff9ff3;
+            border-radius: 50%;
+            top: 3px;
+            animation: wingFlap 0.3s ease-in-out infinite alternate;
+        }
+
+        .enemy::before {
+            left: -8px;
+            transform-origin: right center;
+        }
+
+        .enemy::after {
+            right: -8px;
+            transform-origin: left center;
+        }
+
+        @keyframes wingFlap {
+            0% { 
+                transform: rotateZ(-20deg) scaleY(0.8);
+                opacity: 0.7;
+            }
+            100% { 
+                transform: rotateZ(20deg) scaleY(1.2);
+                opacity: 1;
+            }
+        }
+
+        .enemy-eyes {
+            position: absolute;
+            top: 6px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 12px;
+            height: 6px;
+        }
+
+        .enemy-eyes::before,
+        .enemy-eyes::after {
+            content: '';
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            background: #2f3542;
+            border-radius: 50%;
+            top: 0;
+        }
+
+        .enemy-eyes::before {
+            left: 1px;
+        }
+
+        .enemy-eyes::after {
+            right: 1px;
+        }
+
+        .coin {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            background: linear-gradient(45deg, #feca57 0%, #ffdd59 50%, #feca57 100%);
+            border-radius: 50%;
+            border: 2px solid #f39c12;
+            animation: spin 2s linear infinite, coinGlow 1.5s ease-in-out infinite alternate;
+            box-shadow: 
+                0 0 10px rgba(254, 202, 87, 0.6),
+                inset 2px 2px 4px rgba(255, 255, 255, 0.3),
+                inset -2px -2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        .coin::before {
+            content: '$';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 12px;
+            font-weight: bold;
+            color: #2f3542;
+            text-shadow: 1px 1px 2px rgba(255, 255, 255, 0.5);
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        @keyframes coinGlow {
+            0% { 
+                box-shadow: 
+                    0 0 10px rgba(254, 202, 87, 0.6),
+                    inset 2px 2px 4px rgba(255, 255, 255, 0.3),
+                    inset -2px -2px 4px rgba(0, 0, 0, 0.2);
+            }
+            100% { 
+                box-shadow: 
+                    0 0 20px rgba(254, 202, 87, 0.9),
+                    0 0 30px rgba(255, 221, 89, 0.4),
+                    inset 2px 2px 4px rgba(255, 255, 255, 0.5),
+                    inset -2px -2px 4px rgba(0, 0, 0, 0.3);
+            }
+        }
+
+        .moving-platform {
+            position: absolute;
+            background: linear-gradient(45deg, #3742fa, #2f32e2);
+            border: 2px solid #2742d4;
+            border-radius: 3px;
+            box-shadow: 0 0 10px rgba(55, 66, 250, 0.3);
+        }
+
+        .spike {
+            position: absolute;
+            width: 30px;
+            height: 20px;
+            background: #ff4757;
+            clip-path: polygon(0% 100%, 50% 0%, 100% 100%);
+        }
+
+        #hud {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: #2f3542;
+            font-size: 18px;
+            font-weight: bold;
+            z-index: 100;
+            background: rgba(255,255,255,0.8);
+            padding: 10px;
+            border-radius: 5px;
+        }
+
+        #levelComplete {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0,0,0,0.9);
+            color: white;
+            padding: 30px;
+            border-radius: 10px;
+            text-align: center;
+            display: none;
+            z-index: 200;
+        }
+
+        #gameOver {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(255,0,0,0.9);
+            color: white;
+            padding: 30px;
+            border-radius: 10px;
+            text-align: center;
+            display: none;
+            z-index: 200;
+        }
+
+        .button {
+            background: #3742fa;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            margin: 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        .button:hover {
+            background: #2f32e2;
+        }
+
+        #instructions {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            color: #2f3542;
+            font-size: 14px;
+            background: rgba(255,255,255,0.8);
+            padding: 10px;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <div id="startScreen">
+            <div class="game-title">PLATFORMER ADVENTURE</div>
+            <div class="game-subtitle">Navigate through 5 challenging levels!</div>
+            <button class="play-button" onclick="startGame()">Play Game</button>
+            <div class="game-features">
+                <div class="feature-item">🎮 Double Jump Mechanics</div>
+                <div class="feature-item">👾 Flying Monster Enemies</div>
+                <div class="feature-item">💰 Collect Coins for Points</div>
+                <div class="feature-item">⚡ Progressive Difficulty</div>
+                <div class="feature-item">🏆 5 Unique Levels</div>
+            </div>
+        </div>
+        
+        <div id="hud">
+            <div>Level: <span id="currentLevel">1</span></div>
+            <div>Lives: <span id="lives">3</span></div>
+            <div>Score: <span id="score">0</span></div>
+            <div>Coins: <span id="coins">0</span></div>
+        </div>
+        
+        <div id="instructions">
+            WASD or Arrow Keys to move<br>
+            W/↑ to jump (double jump available!)<br>
+            Collect coins, avoid enemies!
+        </div>
+        
+        <div id="player"></div>
+        
+        <div id="levelComplete">
+            <h2>Level Complete!</h2>
+            <p>Great job! Ready for the next challenge?</p>
+            <button class="button" onclick="nextLevel()">Next Level</button>
+        </div>
+        
+        <div id="gameOver">
+            <h2>Game Over!</h2>
+            <p>Better luck next time!</p>
+            <button class="button" onclick="restart()">Restart Game</button>
+        </div>
+    </div>
+
+    <script>
+        // Game variables
+        let gameContainer, player;
+        let gameWidth = 800, gameHeight = 600;
+        let playerWidth = 30, playerHeight = 30;
+        let playerX = 50, playerY = 500;
+        let playerVelX = 0, playerVelY = 0;
+        let playerSpeed = 5, jumpPower = 15, doubleJumpPower = 13, gravity = 0.8;
+        let onGround = false, canDoubleJump = false, jumpPressed = false;
+        let currentLevel = 1, maxLevel = 5, lives = 5, score = 0, coins = 0;
+        let gameRunning = false, gameStarted = false;
+        let platforms = [], movingPlatforms = [], enemies = [], collectibles = [], hazards = [];
+        let keys = {};
+
+        function init() {
+            gameContainer = document.getElementById('gameContainer');
+            player = document.getElementById('player');
+            bindEvents();
+        }
+
+        function startGame() {
+            document.getElementById('startScreen').classList.add('hidden');
+            gameStarted = true;
+            gameRunning = true;
+            loadLevel(currentLevel);
+            gameLoop();
+        }
+
+        function bindEvents() {
+            document.addEventListener('keydown', (e) => {
+                keys[e.code] = true;
+                e.preventDefault();
+            });
+            
+            document.addEventListener('keyup', (e) => {
+                keys[e.code] = false;
+            });
+        }
+
+        function loadLevel(levelNum) {
+            clearLevel();
+            
+            playerX = 50;
+            playerY = 500;
+            playerVelX = 0;
+            playerVelY = 0;
+            onGround = false;
+            canDoubleJump = false;
+            jumpPressed = false;
+            
+            switch(levelNum) {
+                case 1: loadLevel1(); break;
+                case 2: loadLevel2(); break;
+                case 3: loadLevel3(); break;
+                case 4: loadLevel4(); break;
+                case 5: loadLevel5(); break;
+            }
+            
+            updateHUD();
+        }
+
+        function clearLevel() {
+            document.querySelectorAll('.platform, .moving-platform, .enemy, .coin, .spike').forEach(el => el.remove());
+            platforms = [];
+            movingPlatforms = [];
+            enemies = [];
+            collectibles = [];
+            hazards = [];
+        }
+
+        function loadLevel1() {
+            createPlatform(0, 580, 800, 20);
+            createPlatform(200, 450, 150, 20);
+            createPlatform(450, 350, 150, 20);
+            createPlatform(650, 250, 100, 20);
+            
+            createCoin(250, 420);
+            createCoin(500, 320);
+            createCoin(700, 220);
+            
+            createEnemy(300, 425, 1, 100, 20);
+        }
+
+        function loadLevel2() {
+            createPlatform(0, 580, 800, 20);
+            createPlatform(150, 480, 100, 20);
+            createPlatform(350, 400, 100, 20);
+            createPlatform(550, 320, 100, 20);
+            createPlatform(200, 240, 150, 20);
+            createPlatform(450, 160, 200, 20);
+            
+            // Add a moving platform with coin on it
+            createMovingPlatform(300, 500, 80, 15, 100, 0, 1.5);
+            
+            createCoin(200, 450);
+            createCoin(400, 370);
+            createCoin(600, 290);
+            createCoin(275, 210);
+            createCoin(550, 130);
+            // Coin on moving platform
+            createCoin(340, 470); // This coin will require the moving platform to reach
+            
+            createEnemy(180, 455, 1.5, 80, 25);
+            createEnemy(380, 375, 1.5, 80, 25);
+            createSpike(500, 560);
+            createSpike(530, 560);
+        }
+
+        function loadLevel3() {
+            createPlatform(0, 580, 200, 20);
+            createPlatform(600, 580, 200, 20);
+            createPlatform(100, 450, 100, 20);
+            createPlatform(300, 350, 100, 20);
+            createPlatform(500, 250, 100, 20);
+            createPlatform(150, 150, 150, 20);
+            
+            // Moving platform in the air with coin
+            createMovingPlatform(200, 300, 60, 15, 80, 0, 2);
+            
+            createCoin(150, 420);
+            createCoin(350, 320);
+            createCoin(550, 220);
+            createCoin(225, 120);
+            // Coin on moving platform - positioned in the middle of its path
+            createCoin(240, 270); // Players must time their jump to the moving platform
+            
+            // Slowed down enemies for better gameplay balance
+            createEnemy(130, 425, 1.2, 60, 30);
+            createEnemy(330, 325, 1.2, 60, 30);
+            createEnemy(530, 225, 1.2, 60, 30);
+            
+            for(let i = 250; i < 550; i += 40) {
+                createSpike(i, 560);
+            }
+        }
+
+        function loadLevel4() {
+            createPlatform(0, 580, 150, 20);
+            createPlatform(650, 580, 150, 20);
+            createPlatform(100, 480, 80, 20);
+            createPlatform(250, 400, 80, 20);
+            createPlatform(400, 320, 80, 20);
+            createPlatform(550, 240, 80, 20);
+            createPlatform(300, 160, 200, 20);
+            
+            // Multiple moving platforms with coins
+            createMovingPlatform(180, 380, 60, 15, 60, 0, 2.5);
+            createMovingPlatform(480, 280, 60, 15, 50, 0, 2);
+            
+            createCoin(140, 450);
+            createCoin(290, 370);
+            createCoin(440, 290);
+            createCoin(590, 210);
+            createCoin(400, 130);
+            // Coins on moving platforms - essential for completion
+            createCoin(210, 350); // On first moving platform
+            createCoin(505, 250); // On second moving platform
+            
+            // Slowed down enemies for better balance with multiple moving platforms
+            createEnemy(120, 455, 1.8, 50, 35);
+            createEnemy(270, 375, 1.8, 50, 35);
+            createEnemy(420, 295, 1.8, 50, 35);
+            createEnemy(570, 215, 1.8, 50, 35);
+            
+            for(let i = 200; i < 600; i += 30) {
+                createSpike(i, 560);
+            }
+        }
+
+        function loadLevel5() {
+            createPlatform(0, 580, 100, 20);
+            createPlatform(700, 580, 100, 20);
+            createPlatform(80, 500, 60, 20);
+            createPlatform(200, 420, 60, 20);
+            createPlatform(320, 340, 60, 20);
+            createPlatform(440, 260, 60, 20);
+            createPlatform(560, 180, 60, 20);
+            createPlatform(350, 100, 100, 20);
+            
+            // Advanced moving platforms with strategic coin placement
+            createMovingPlatform(120, 380, 50, 15, 40, 0, 3);
+            createMovingPlatform(380, 200, 50, 15, 60, 0, 2.5);
+            createMovingPlatform(250, 480, 50, 15, 80, 0, 2);
+            
+            createCoin(110, 470);
+            createCoin(230, 390);
+            createCoin(350, 310);
+            createCoin(470, 230);
+            createCoin(590, 150);
+            createCoin(400, 70);
+            // Coins on moving platforms - critical for level completion
+            createCoin(140, 350); // On first moving platform
+            createCoin(410, 170); // On second moving platform  
+            createCoin(290, 450); // On third moving platform
+            
+            createEnemy(100, 475, 3, 40, 40);
+            createEnemy(220, 395, 3, 40, 40);
+            createEnemy(340, 315, 3, 40, 40);
+            createEnemy(460, 235, 3, 40, 40);
+            createEnemy(580, 155, 3, 40, 40);
+            
+            for(let i = 150; i < 650; i += 25) {
+                createSpike(i, 560);
+            }
+        }
+
+        function createPlatform(x, y, width, height) {
+            const platform = document.createElement('div');
+            platform.className = 'platform';
+            platform.style.left = x + 'px';
+            platform.style.top = y + 'px';
+            platform.style.width = width + 'px';
+            platform.style.height = height + 'px';
+            gameContainer.appendChild(platform);
+            
+            platforms.push({x, y, width, height, element: platform});
+        }
+
+        function createMovingPlatform(x, y, width, height, moveX, moveY, speed) {
+            const platform = document.createElement('div');
+            platform.className = 'moving-platform';
+            platform.style.left = x + 'px';
+            platform.style.top = y + 'px';
+            platform.style.width = width + 'px';
+            platform.style.height = height + 'px';
+            gameContainer.appendChild(platform);
+            
+            movingPlatforms.push({
+                x, y, startX: x, startY: y, width, height,
+                moveX, moveY, speed, direction: 1, element: platform
+            });
+        }
+
+        function createEnemy(x, y, speed, range, verticalRange = 30) {
+            const enemy = document.createElement('div');
+            enemy.className = 'enemy';
+            enemy.style.left = x + 'px';
+            enemy.style.top = y + 'px';
+            
+            const eyes = document.createElement('div');
+            eyes.className = 'enemy-eyes';
+            enemy.appendChild(eyes);
+            
+            gameContainer.appendChild(enemy);
+            
+            enemies.push({
+                x, y, startX: x, startY: y, speed, range, verticalRange,
+                direction: 1, verticalDirection: 1, verticalOffset: 0, element: enemy
+            });
+        }
+
+        function createCoin(x, y) {
+            const coin = document.createElement('div');
+            coin.className = 'coin';
+            coin.style.left = x + 'px';
+            coin.style.top = y + 'px';
+            gameContainer.appendChild(coin);
+            
+            collectibles.push({x, y, width: 20, height: 20, element: coin, type: 'coin'});
+        }
+
+        function createSpike(x, y) {
+            const spike = document.createElement('div');
+            spike.className = 'spike';
+            spike.style.left = x + 'px';
+            spike.style.top = y + 'px';
+            gameContainer.appendChild(spike);
+            
+            hazards.push({x, y, width: 30, height: 20, element: spike});
+        }
+
+        function updatePlayer() {
+            if (keys['KeyA'] || keys['ArrowLeft']) {
+                playerVelX = -playerSpeed;
+            } else if (keys['KeyD'] || keys['ArrowRight']) {
+                playerVelX = playerSpeed;
+            } else {
+                playerVelX *= 0.8;
+            }
+            
+            const jumpKey = keys['KeyW'] || keys['ArrowUp'];
+            
+            if (jumpKey && !jumpPressed) {
+                if (onGround) {
+                    playerVelY = -jumpPower;
+                    onGround = false;
+                    canDoubleJump = true;
+                    addBounceEffect();
+                } else if (canDoubleJump) {
+                    playerVelY = -doubleJumpPower;
+                    canDoubleJump = false;
+                    addDoubleJumpEffect();
+                }
+            }
+            
+            jumpPressed = jumpKey;
+            playerVelY += gravity;
+            playerX += playerVelX;
+            playerY += playerVelY;
+            
+            if (playerX < 0) playerX = 0;
+            if (playerX > gameWidth - playerWidth) {
+                playerX = gameWidth - playerWidth;
+            }
+            
+            checkPlatformCollisions();
+            
+            if (playerY > gameHeight) {
+                loseLife();
+            }
+            
+            player.style.left = playerX + 'px';
+            player.style.top = playerY + 'px';
+        }
+
+        function checkPlatformCollisions() {
+            const wasOnGround = onGround;
+            onGround = false;
+            
+            // Check static platforms
+            for (let platform of platforms) {
+                if (playerX < platform.x + platform.width &&
+                    playerX + playerWidth > platform.x &&
+                    playerY < platform.y + platform.height &&
+                    playerY + playerHeight > platform.y) {
+                    
+                    handlePlatformCollision(platform, wasOnGround);
+                }
+            }
+            
+            // Check moving platforms
+            for (let platform of movingPlatforms) {
+                if (playerX < platform.x + platform.width &&
+                    playerX + playerWidth > platform.x &&
+                    playerY < platform.y + platform.height &&
+                    playerY + playerHeight > platform.y) {
+                    
+                    handlePlatformCollision(platform, wasOnGround);
+                    
+                    // Move player with platform when standing on it
+                    if (onGround && playerVelY >= 0) {
+                        playerX += platform.speed * platform.direction;
+                    }
+                }
+            }
+        }
+
+        function handlePlatformCollision(platform, wasOnGround) {
+            if (playerVelY > 0 && playerY < platform.y) {
+                playerY = platform.y - playerHeight;
+                playerVelY = 0;
+                onGround = true;
+                
+                if (!wasOnGround) {
+                    canDoubleJump = false;
+                    addBounceEffect();
+                }
+            } else if (playerVelY < 0 && playerY > platform.y) {
+                playerY = platform.y + platform.height;
+                playerVelY = 0;
+            } else if (playerVelX > 0) {
+                playerX = platform.x - playerWidth;
+            } else if (playerVelX < 0) {
+                playerX = platform.x + platform.width;
+            }
+        }
+
+        function updateMovingPlatforms() {
+            for (let platform of movingPlatforms) {
+                // Update position
+                platform.x += platform.speed * platform.direction;
+                
+                // Reverse direction at movement limits
+                if (platform.x <= platform.startX - platform.moveX || 
+                    platform.x >= platform.startX + platform.moveX) {
+                    platform.direction *= -1;
+                }
+                
+                // Update DOM element position
+                platform.element.style.left = platform.x + 'px';
+            }
+        }
+
+        function updateEnemies() {
+            for (let enemy of enemies) {
+                enemy.x += enemy.speed * enemy.direction;
+                
+                if (enemy.x <= enemy.startX - enemy.range || 
+                    enemy.x >= enemy.startX + enemy.range) {
+                    enemy.direction *= -1;
+                }
+                
+                enemy.verticalOffset += enemy.speed * 0.5 * enemy.verticalDirection;
+                
+                if (enemy.verticalOffset <= -enemy.verticalRange || 
+                    enemy.verticalOffset >= enemy.verticalRange) {
+                    enemy.verticalDirection *= -1;
+                }
+                
+                enemy.element.style.left = enemy.x + 'px';
+                enemy.element.style.top = (enemy.startY + enemy.verticalOffset) + 'px';
+                
+                if (checkCollision(playerX, playerY, playerWidth, playerHeight,
+                                  enemy.x, enemy.startY + enemy.verticalOffset, 35, 25)) {
+                    loseLife();
+                }
+            }
+        }
+
+        function updateCollectibles() {
+            for (let i = collectibles.length - 1; i >= 0; i--) {
+                let collectible = collectibles[i];
+                
+                if (checkCollision(playerX, playerY, playerWidth, playerHeight,
+                                  collectible.x, collectible.y, collectible.width, collectible.height)) {
+                    
+                    if (collectible.type === 'coin') {
+                        coins++;
+                        score += 100;
+                    }
+                    
+                    collectible.element.remove();
+                    collectibles.splice(i, 1);
+                    updateHUD();
+                }
+            }
+        }
+
+        function updateHazards() {
+            for (let hazard of hazards) {
+                if (checkCollision(playerX, playerY, playerWidth, playerHeight,
+                                  hazard.x, hazard.y, hazard.width, hazard.height)) {
+                    loseLife();
+                }
+            }
+        }
+
+        function addBounceEffect() {
+            player.classList.remove('player-bounce');
+            player.offsetHeight;
+            player.classList.add('player-bounce');
+            
+            setTimeout(() => {
+                player.classList.remove('player-bounce');
+            }, 300);
+        }
+
+        function addDoubleJumpEffect() {
+            player.classList.remove('player-double-jump');
+            player.offsetHeight;
+            player.classList.add('player-double-jump');
+            
+            setTimeout(() => {
+                player.classList.remove('player-double-jump');
+            }, 400);
+        }
+
+        function checkCollision(x1, y1, w1, h1, x2, y2, w2, h2) {
+            return x1 < x2 + w2 && x1 + w1 > x2 && y1 < y2 + h2 && y1 + h1 > y2;
+        }
+
+        function checkLevelComplete() {
+            if (collectibles.length === 0) {
+                gameRunning = false;
+                document.getElementById('levelComplete').style.display = 'block';
+            }
+        }
+
+        function nextLevel() {
+            document.getElementById('levelComplete').style.display = 'none';
+            currentLevel++;
+            
+            if (currentLevel > maxLevel) {
+                alert('Congratulations! You completed all levels!');
+                restart();
+            } else {
+                loadLevel(currentLevel);
+                gameRunning = true;
+            }
+        }
+
+        function loseLife() {
+            lives--;
+            updateHUD();
+            
+            if (lives <= 0) {
+                gameOver();
+            } else {
+                playerX = 50;
+                playerY = 500;
+                playerVelX = 0;
+                playerVelY = 0;
+                onGround = false;
+                canDoubleJump = false;
+                jumpPressed = false;
+            }
+        }
+
+        function gameOver() {
+            gameRunning = false;
+            document.getElementById('gameOver').style.display = 'block';
+        }
+
+        function restart() {
+            currentLevel = 1;
+            lives = 3;
+            score = 0;
+            coins = 0;
+            gameRunning = true;
+            gameStarted = true;
+            onGround = false;
+            canDoubleJump = false;
+            jumpPressed = false;
+            
+            document.getElementById('levelComplete').style.display = 'none';
+            document.getElementById('gameOver').style.display = 'none';
+            
+            loadLevel(currentLevel);
+        }
+
+        function updateHUD() {
+            document.getElementById('currentLevel').textContent = currentLevel;
+            document.getElementById('lives').textContent = lives;
+            document.getElementById('score').textContent = score;
+            document.getElementById('coins').textContent = coins;
+        }
+
+        function gameLoop() {
+            if (gameRunning && gameStarted) {
+                updatePlayer();
+                updateMovingPlatforms();
+                updateEnemies();
+                updateCollectibles();
+                updateHazards();
+                checkLevelComplete();
+            }
+            
+            if (gameStarted) {
+                requestAnimationFrame(gameLoop);
+            }
+        }
+
+        // Initialize game when page loads
+        window.addEventListener('load', init);
+    </script>
+</body>
+</html>
