@@ -1,7 +1,3 @@
-Here’s your blog content rewritten into a GitHub-style `README.md` format, just like the *GUARDIAN - Earth Defense Force* example:
-
----
-
 # 🕹️ PLATFORMER ADVENTURE
 
 **Version 1.0**
